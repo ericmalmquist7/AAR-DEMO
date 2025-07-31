@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One Page Print</title>
+  <style>
+    @media print {
+        @page {
+            size: A4;       /* Force A4 page size */
+            margin: 0;      /* No default margins */
+        }
+
+        body {
+            margin: 0;      /* Remove body margins */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body * {
+            display: none !important;
+        }
+
+        #edit-preview-container,
+        #pages-section,
+        #pages-section * {
+            display: block !important;
+        }
+
+        #pages-section .no-print{
+            display: none !important;
+        }
+
+        .print-page {
+            border: none !important;
+        }
+
+        .error {
+            color:black
+        }
+        
+        #pages-section .user-input,
+        #pages-section .error {
+            color: black !important;
+            display: inline !important;
+        }
+        
+    }
+
+    /* Top level container that holds all edit and page containers */
+    #edit-preview-container{
+        display: flex;
+        flex-flow:row;
+        align-items: top;
+        margin: 0 auto;             /* Center horizontally */
+        width: fit-content;         /* Shrink to fit internal content */
+        max-width: 100%;            /* Prevent overflow */
+    }
+
+    #edit-section{
+        display: flex;
+        flex-flow: column;
+        gap:10px;
+    }
+
+    #pages-section{
+        display: flex;
+        flex-flow: column;
+        gap:10px;
+    }
+
+    /* Container for each page */
+    .print-page {
+        width: 210mm;   /* A4 width */
+        height: 297mm;  /* A4 height */
+        padding: 40mm;
+        box-sizing: border-box;
+        page-break-after: always; /* Ensure next content goes to new page */
+        background-size: 100% 100%;
+        background-position: center;
+        background-repeat: no-repeat;
+        border: solid 1mm black;
+    }
+
+    /* Container for each edit panel */
+    .edit-panel{
+        display: flex;
+        flex-flow: column;
+        height: 297mm;
+        gap:10px;
+        padding: 20px;
+        box-sizing: border-box;
+        align-items: flex-start;
+        justify-content: flex-start;
+        background-color: rgb(233, 233, 233);
+        border-top: 1mm solid black;
+        border-left: 1mm solid black;
+        border-bottom: 1mm solid black;
+        border-right: none;
+    }
+
+    /* Page styling - background of each page */
+    .template{
+        background-image: url("template.jpg");
+    }
+
+    /* Page styling - screenshot container in each page */
+    .screenshot-container{
+        max-width: 100%;
+    }
+
+    /* Page styling - screenshot in each page */
+    .screenshot {
+      max-width: 100%;
+      display: block;
+    }
+
+    /* Page styling - image dropzone */
+    .dropzone {
+        width: 100%;
+        height: 150px;
+        border: 2px dashed #aaa;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #666;
+        font-size: 14px;
+        cursor: pointer;
+        background-color: #f9f9f9;
+        transition: background-color 0.3s;
+        margin-top: 10px;
+    }
+
+    /* Page styling - image dropzone dragover event */
+    .dropzone.dragover {
+        background-color: #e0e0e0;
+        border-color: #333;
+        color: #333;
+    }
+
+    /* Page styling - Dynamic user input style */
+    .user-input{
+        color: green;
+    }
+
+    /* Page styling - Dynamic error style */
+    .error{
+        color: red;
+    }
+
+    /* Edit styling - Input labels */
+    .edit-label {
+        width: 100%;
+        text-align: center;
+        height: 20px;
+        margin: 4px;
+    }
+
+    /* Edit styling - Input fields */
+    .edit-panel input {
+        height: 20px;
+    }
+
+    /* Edit styling - Dynamic error style */
+    .error-border {
+        border: 2px solid red;
+    }
+
+    /* Style for page creation button */
+    .new-page-button {
+        display: block;
+        margin: 40px auto;             /* Center horizontally + spacing */
+        padding: 16px 32px;
+        font-size: 1.5rem;
+        background-color: #28a745;     /* Bootstrap green */
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+
+    .new-page-button:hover {
+        background-color: #218838;     /* Slightly darker green */
+    }
+
+    .new-page-button:active {
+        transform: scale(0.85);
+    }
+
+  </style>
+</head>
+<body>
+    <div id="hidden-html-templates" style="display: none;">
+        <form id="edit-form-template" class="edit-panel">
+            <br>
+            <p class="edit-label">TYPE</p> 
+            <input name="type" type="text" placeholder="Generic Thingy">
+            <p class="edit-label">LOCATION</p> 
+            <input name="location" type="text" placeholder="Generic Place">
+            <p class="edit-label">CCLT</p> 
+            <input name="cclt" type="text" placeholder="123045">
+            <p class="edit-label">RELEASE</p> 
+            <input name="release" type="text" placeholder="123150">
+            <fieldset>
+                <legend>Initial:</legend>
+                <label>
+                    <input type="radio" name="initial" value="Auto" checked>
+                    Auto
+                </label>
+
+                <label>
+                    <input type="radio" name="initial" value="Manual" >
+                    Manual
+                </label>
+            </fieldset>
+            <fieldset>
+                <legend>Final:</legend>
+                <label>
+                    <input type="radio" name="final" value="Auto" checked>
+                    Auto
+                </label>
+
+                <label>
+                    <input type="radio" name="final" value="Manual">
+                    Manual
+                </label>
+            </fieldset>
+            <p class="edit-label">POI</p> 
+            <input name="poi" value="N/A">
+        </form>
+        <div id="page-template" class="print-page template">
+            <p class="line-1"></p>
+            <p class="line-2"></p>
+            <p class="line-3"></p>
+            <p class="line-4"></p>
+            <p class="line-5"></p>  
+            <div class="dropzone no-print">
+                Drag & drop an image here or click to select
+            </div>
+            <div class="screenshot-container" style="position: relative; display: none;">
+                <img class="screenshot">
+                <button class="remove-screenshot no-print" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">×</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-preview-container"> 
+        <div id="edit-section">
+        </div>
+
+        <div id="pages-section">
+        </div>
+
+    </div>
+    
+    <div>
+        <button class="new-page-button">
+            ➕ New Page
+        </button>
+    </div>
+  <script>
+    // ###### Constant Global Variables ###### //
+
+    const line_templates = {
+        "line-1": "1. This is from %s",
+        "line-2": "2. This is related to type %s",
+        "line-3": "3. This release time is: %s",
+        "line-4": "4. This method is: %s",
+        "line-5": "5. Are we in a thing: %s",
+    }
+
+
+    // ###### Initial event handlers ###### //
+
+    // Attach a listener to all current and future inputs of name 'cclt' and 'release'
+    document.body.addEventListener('input', (e) => {
+        const target = e.target;
+        if (
+            target.matches('input[name="cclt"]') || 
+            target.matches('input[name="release"]')
+        ) {
+            target.value = target.value.replace(/\D/g, '').slice(0, 6);
+        }
+    });
+
+    // Attach new page function to the new page button
+    document.querySelector('.new-page-button').addEventListener('click', () => { addNewPage() });
+
+    // Load new page if none are present
+    if (getPageCount() === 0){ addNewPage() }
+        
+
+    // ###### Image dropzone event handlers ###### //
+
+    function setupDropzone(dz) {
+
+        // Click fallback for file selection
+        dz.addEventListener('click', () => {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.onchange = () => handleFiles(fileInput.files, dz);
+            fileInput.click();
+        });
+
+        // Drag events
+        dz.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dz.classList.add('dragover');
+        });
+
+        dz.addEventListener('dragleave', () => {
+            dz.classList.remove('dragover');
+        });
+
+        dz.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dz.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files, dz);
+        });
+    }
+
+    function handleFiles(files, dropzone) {
+        const file = files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+            
+        const container = dropzone.parentElement.querySelector('.screenshot-container');
+        const img = container.querySelector('.screenshot');
+        const removeBtn = container.querySelector('.remove-screenshot');
+
+        const reader = new FileReader();
+            reader.onload = (e) => {
+            img.src = e.target.result;
+            container.style.display = 'block';
+            dropzone.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+
+        removeBtn.onclick = () => {
+            img.src = '';
+            container.style.display = 'none';
+            dropzone.style.display = 'flex';
+        }
+    }
+
+
+    // ###### Page Add/Delete ###### //
+
+    function addNewPage(){
+
+        const pageNumber = getPageCount() + 1
+
+        // Clone template edit form
+        const formTemplate = document.querySelector('#edit-form-template');
+        const newForm = formTemplate.cloneNode(true);
+        newForm.id = `edit-form-page-${pageNumber}`;
+
+        // Clone the page
+        const pageTemplate = document.querySelector('#page-template');
+        const newPage = pageTemplate.cloneNode(true);
+        newPage.id = `page-${pageNumber}`;
+
+        // Set up preview container
+        const edit_section = document.getElementById('edit-section');
+        edit_section.appendChild(newForm);
+
+        const pages_section = document.getElementById('pages-section');
+        pages_section.appendChild(newPage);
+
+        // Attach page event listener to edit form
+        newForm.addEventListener('change', () => {updatePage(pageNumber)});
+
+        // Attach image dropzone listener to page
+        setupDropzone(newPage.querySelector('.dropzone'));
+
+        updatePage(pageNumber); // initialize lines
+    }
+
+    function getPageCount() {
+        const pages = document.querySelectorAll('#pages-section > [id^="page-"]');
+        return pages.length;
+    }
+
+
+    // ###### Input Parsing and Page Update Functions ###### //
+
+    function updatePage(page_number){
+
+        const page = document.getElementById(`page-${page_number}`)
+        const form = document.querySelector(`#edit-form-page-${page_number}`);
+        const data = new FormData(form);
+
+        const type = data.get('type') || "";
+        const location = data.get('location') || "";
+        const cclt = data.get('cclt') || "";
+        const release = data.get('release') || "";
+        const initial = data.get('initial') || "";
+        const final = data.get('final') || "";
+        const poi = data.get('poi') || "";
+
+
+        // Generate Line 1
+        const line_1 = page.querySelector('.line-1')
+
+        const location_valid = location !== "";
+        const location_checked = location_valid ? wrapInput(location) : wrapError("[NO LOCATION]");
+        form.querySelector('[name="location"]').classList.toggle('error-border', !location_valid);
+
+
+        const line_1_text = line_templates["line-1"].replace('%s', location_checked);
+        line_1.innerHTML = line_1_text
+
+        // Generate Line 2
+        const line_2 = page.querySelector('.line-2')
+
+        const type_valid = type !== "";
+        const type_checked = type_valid ? wrapInput(type) : wrapError("[NO TYPE]");
+        form.querySelector('[name="type"]').classList.toggle('error-border', !type_valid);
+
+        const line_2_text = line_templates["line-2"].replace('%s', type_checked)
+        line_2.innerHTML = line_2_text
+
+        // Generate Line 3
+        const line_3 = page.querySelector('.line-3');
+
+        let line_3_text;
+
+        const cclt_valid = /^\d{6}$/.test(cclt);
+        form.querySelector('[name="cclt"]').classList.toggle('error-border', !cclt_valid);
+
+        const release_valid = /^\d{6}$/.test(release);
+        form.querySelector('[name="release"]').classList.toggle('error-border', !release_valid);
+
+        if (cclt_valid && release_valid) {
+            const formatted_release = formatZuluDelta(cclt, release);
+            line_3_text = line_templates["line-3"].replace('%s', formatted_release);
+        } 
+        else {
+            let warning;
+            if (!cclt_valid && !release_valid) {
+                warning = "[CCLT & RELEASE INVALID]";
+            } 
+            else if (!cclt_valid) {
+                warning = "[CCLT INVALID]";
+            } 
+            else {
+                warning = "[RELEASE INVALID]";
+            }
+            line_3_text = line_templates["line-3"].replace('%s', wrapError(warning));
+        }
+
+        line_3.innerHTML = line_3_text;
+
+        // Generate Line 4
+        const line_4 = page.querySelector('.line-4')
+
+        const line_4_text = line_templates["line-4"].replace('%s', wrapInput(initial + "/" + final))
+        line_4.innerHTML = line_4_text
+
+        // Generate Line 5
+        const line_5 = page.querySelector('.line-5')
+
+        const poi_valid = poi !== "";
+        const poi_checked = poi_valid ? wrapInput(poi) : wrapError("[NO POI]");
+        form.querySelector('[name="poi"]').classList.toggle('error-border', !poi_valid);
+        
+        let line_5_text = line_templates["line-5"].replace('%s', poi_checked)
+        line_5.innerHTML = line_5_text
+    }
+
+    function wrapInput(text){
+        return `<span class='user-input'>${text}</span>`
+    }
+
+    function wrapError(text) {
+        return `<span class='error'>${text}</span>`;
+    }
+
+    function parseZuluTime(hhmmss, dayOffset = 0) {
+        const h = parseInt(hhmmss.slice(0, 2), 10);
+        const m = parseInt(hhmmss.slice(2, 4), 10);
+        const s = parseInt(hhmmss.slice(4, 6), 10);
+        return new Date(Date.UTC(1970, 0, 1 + dayOffset, h, m, s));
+    }
+
+    function formatZuluDelta(ccltStr, releaseStr) {
+        const cclt = parseZuluTime(ccltStr);
+        let release = parseZuluTime(releaseStr);
+
+        if (release < cclt) {
+            // assume release is on the next day
+            release = parseZuluTime(releaseStr, 1);
+        }
+
+        const deltaSec = Math.round((release - cclt) / 1000);
+        const sign = deltaSec >= 0 ? '+' : '-';
+        const absSec = Math.abs(deltaSec);
+        const mm = Math.floor(absSec / 60);
+        const ss = absSec % 60;
+
+        const pad = (n) => n.toString().padStart(2, '0');
+        const releaseFormatted = `${pad(release.getUTCHours())}:${pad(release.getUTCMinutes())}:${pad(release.getUTCSeconds())}Z`;
+        const deltaFormatted = `(${sign}${pad(mm)}:${pad(ss)})`;
+
+        return `${releaseFormatted} ${deltaFormatted}`;
+    }
+
+  </script>
+
+</body>
+</html>
