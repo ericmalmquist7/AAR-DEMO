@@ -78,13 +78,24 @@
         position: relative;
         width: 210mm;   /* A4 width */
         height: 297mm;  /* A4 height */
-        padding: 40mm;
+        padding: 1.85in 1in 1in 1in;
         box-sizing: border-box;
         page-break-after: always; /* Ensure next content goes to new page */
         background-size: 100% 100%;
         background-position: center;
         background-repeat: no-repeat;
         border: solid 1mm black;
+    }
+
+    .print-page *{
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+    }
+
+    .page-number{
+        position: absolute;
+        top: 1.65in;
+        right: 1in;
     }
 
     /* Container for each edit panel */
@@ -141,6 +152,23 @@
         background-color: #e0e0e0;
         border-color: #333;
         color: #333;
+    }
+
+    .remove-screenshot {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 24px;
+        text-align: center;
+        padding: 0;
     }
 
     /* Page styling - Dynamic user input style */
@@ -252,18 +280,24 @@
         text-align: center;
     }
 
-
+    .styled-date {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        border: 1px solid black;
+        padding: 4px;
+        width: 100px;
+    }
 
   </style>
 </head>
 <body>
     <div id="hidden-html-templates" style="display: none;">
-        <form id="edit-form-template" class="edit-panel">
+        <form id="edit-form-hidden-template" class="edit-panel">
             <br>
-            <p class="edit-label">TYPE</p> 
-            <input name="type" type="text" placeholder="Generic Thingy">
             <p class="edit-label">LOCATION</p> 
             <input name="location" type="text" placeholder="Generic Place">
+            <p class="edit-label">TYPE</p> 
+            <input name="type" type="text" placeholder="Generic Thingy">
             <p class="edit-label">CCLT</p> 
             <input name="cclt" type="text" placeholder="123045">
             <p class="edit-label">RELEASE</p> 
@@ -271,36 +305,40 @@
             <fieldset>
                 <legend>Initial:</legend>
                 <label>
-                    <input type="radio" name="initial" value="Auto" checked>
+                    <input type="radio" name="initial" value="A" checked>
                     Auto
                 </label>
 
                 <label>
-                    <input type="radio" name="initial" value="Manual" >
+                    <input type="radio" name="initial" value="M" >
                     Manual
                 </label>
             </fieldset>
             <fieldset>
                 <legend>Final:</legend>
                 <label>
-                    <input type="radio" name="final" value="Auto" checked>
+                    <input type="radio" name="final" value="A" checked>
                     Auto
                 </label>
 
                 <label>
-                    <input type="radio" name="final" value="Manual">
+                    <input type="radio" name="final" value="M">
                     Manual
                 </label>
             </fieldset>
             <p class="edit-label">POI</p> 
             <input name="poi" value="N/A">
         </form>
-        <div id="page-template" class="print-page template">
+        <div id="page-hidden-template" class="print-page template">
             <div class="page-controls no-print">
                 <button class="reorder-page-button move-up" title="Move page up">↑</button>
                 <button class="reorder-page-button move-down" title="Move page down">↓</button>
                 <button class="delete-page-button" title="Delete this page">−</button>
             </div>
+            <p class="page-number"></p>  
+            <p class="first-page-header-1"></p>
+            <p class="first-page-header-2"></p>
+            <p class="subject"></p>
             <p class="line-1"></p>
             <p class="line-2"></p>
             <p class="line-3"></p>
@@ -311,11 +349,28 @@
             </div>
             <div class="screenshot-container" style="position: relative; display: none;">
                 <img class="screenshot">
-                <button class="remove-screenshot no-print" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">×</button>
+                <button class="remove-screenshot no-print">×</button>
             </div>
         </div>
     </div>
     <h1 class="title">Builder</h1>
+
+    <form id="global-settings">
+        <fieldset>
+            <legend>Active Site:</legend>
+            <label>
+                <input type="radio" name="active_site" value="A" checked>
+                A
+            </label>
+
+            <label>
+                <input type="radio" name="active_site" value="B" >
+                B
+            </label>
+        </fieldset>
+        <input id="custom-date" name="current_date" class="styled-date" type="text">
+
+    </form>
 
     <div id="edit-preview-container"> 
         <div id="edit-section">
@@ -335,171 +390,213 @@
     // ###### Constant Global Variables ###### //
 
     const line_templates = {
-        "line-1": "1. This is from %s",
-        "line-2": "2. This is related to type %s",
-        "line-3": "3. This release time is: %s",
-        "line-4": "4. This method is: %s",
-        "line-5": "5. Are we in a thing: %s",
+        "first-page-header-1":"MEMORANDUM FOR THEATER FMO",
+        "first-page-header-2":"FROM: XXXXX %s",
+        "subject": "SUBJECT: (X) Missile Launch Event Messages from %s",
+        "line-1": "1. (X) Missile Type (final profile released as): %s",
+        "line-2": "2. (X) Initial operator message release time: %s",
+        "line-3": "3. (X) How initial and final message was released (manual of auto): %s",
+        "line-4": "4. (X) X message and how it was received, when applicable: %s",
+        "line-5": "5. (X) Screenshot of final launch message release:",
     }
 
 
     // ###### Initial event handlers ###### //
 
-    // Attach a listener to all current and future inputs of name 'cclt' and 'release'
+    // Load today's date:
+    const dateInput = document.getElementById('custom-date')
+
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = now.toLocaleString('en-US', { month: 'short' }) // e.g., "Aug"
+    const year = String(now.getFullYear()).slice(-2)              // e.g., "25"
+
+    dateInput.value = `${day} ${month} ${year}`
+
+    // Load any saved changes
+    restoreFromLocalStorage()
+
+    // Set autosave event handlers
+    document.body.addEventListener('change', () => saveToLocalStorage())
+
+
+    // Attach input validation to all current and future inputs of name 'cclt' and 'release'
     document.body.addEventListener('input', (e) => {
-        const target = e.target;
+        const target = e.target
         if (
             target.matches('input[name="cclt"]') || 
             target.matches('input[name="release"]')
         ) {
-            target.value = target.value.replace(/\D/g, '').slice(0, 6);
+            target.value = target.value.replace(/\D/g, '').slice(0, 6)
         }
-    });
+    })
+
+    // Attach input validation to current date
+    document.querySelector('#custom-date').addEventListener('input', () => {
+        const input = document.getElementById('custom-date')
+        const value = input.value.trim()
+        const isValid = /^\d{2} [A-Z][a-z]{2} \d{2}$/.test(value)
+
+        input.classList.toggle('error', !isValid)
+        return isValid
+    })
 
     // Attach new page function to the new page button
-    document.querySelector('.new-page-button').addEventListener('click', () => { addNewPage() });
+    document.querySelector('.new-page-button').addEventListener('click', () => { addNewPage() })
+
+    // Attach global settings form to apply updates to all pages
+    document.querySelector('#global-settings').addEventListener('change', () => {
+        updateAllPages()
+    })
 
     // Load new page if none are present
-    if (getPageCount() === 0){ addNewPage() }
-        
+    if (getPageCount() === 0){ 
+        addNewPage() 
+    }
 
+        
     // ###### Image dropzone event handlers ###### //
 
     function setupDropzone(dz) {
 
         // Click fallback for file selection
         dz.addEventListener('click', () => {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/*';
-            fileInput.onchange = () => handleFiles(fileInput.files, dz);
-            fileInput.click();
-        });
+            const fileInput = document.createElement('input')
+            fileInput.type = 'file'
+            fileInput.accept = 'image/*'
+            fileInput.onchange = () => handleFiles(fileInput.files, dz)
+            fileInput.click()
+        })
 
         // Drag events
         dz.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dz.classList.add('dragover');
-        });
+            e.preventDefault()
+            dz.classList.add('dragover')
+        })
 
         dz.addEventListener('dragleave', () => {
-            dz.classList.remove('dragover');
-        });
+            dz.classList.remove('dragover')
+        })
 
         dz.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dz.classList.remove('dragover');
-            handleFiles(e.dataTransfer.files, dz);
-        });
+            e.preventDefault()
+            dz.classList.remove('dragover')
+            handleFiles(e.dataTransfer.files, dz)
+        })
     }
 
     function handleFiles(files, dropzone) {
-        const file = files[0];
-        if (!file || !file.type.startsWith('image/')) return;
+        const file = files[0]
+        if (!file || !file.type.startsWith('image/')) return
             
-        const container = dropzone.parentElement.querySelector('.screenshot-container');
-        const img = container.querySelector('.screenshot');
-        const removeBtn = container.querySelector('.remove-screenshot');
+        const container = dropzone.parentElement.querySelector('.screenshot-container')
+        const img = container.querySelector('.screenshot')
+        const removeBtn = container.querySelector('.remove-screenshot')
 
-        const reader = new FileReader();
+        const reader = new FileReader()
             reader.onload = (e) => {
-            img.src = e.target.result;
-            container.style.display = 'block';
-            dropzone.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
+            img.src = e.target.result
+            container.style.display = 'block'
+            dropzone.style.display = 'none'
+            saveToLocalStorage()
+        }
+        reader.readAsDataURL(file)
 
         removeBtn.onclick = () => {
-            img.src = '';
-            container.style.display = 'none';
-            dropzone.style.display = 'flex';
+            img.src = ''
+            container.style.display = 'none'
+            dropzone.style.display = 'flex'
+            saveToLocalStorage()
         }
     }
 
 
     // ###### Page Add/Delete ###### //
-
+    
     function addNewPage(){
 
         const pageNumber = getPageCount() + 1
 
         // Clone template edit form
-        const formTemplate = document.querySelector('#edit-form-template');
-        const newForm = formTemplate.cloneNode(true);
-        newForm.id = `edit-form-page-${pageNumber}`;
+        const formTemplate = document.querySelector('#edit-form-hidden-template')
+        const newForm = formTemplate.cloneNode(true)
+        newForm.id = `edit-form-page-${pageNumber}`
 
         // Clone the page
-        const pageTemplate = document.querySelector('#page-template');
-        const newPage = pageTemplate.cloneNode(true);
-        newPage.id = `page-${pageNumber}`;
+        const pageTemplate = document.querySelector('#page-hidden-template')
+        const newPage = pageTemplate.cloneNode(true)
+        newPage.id = `page-${pageNumber}`
 
         // Set up preview container
-        const edit_section = document.getElementById('edit-section');
-        edit_section.appendChild(newForm);
+        const edit_section = document.getElementById('edit-section')
+        edit_section.appendChild(newForm)
 
-        const pages_section = document.getElementById('pages-section');
-        pages_section.appendChild(newPage);
+        const pages_section = document.getElementById('pages-section')
+        pages_section.appendChild(newPage)
 
         // Attach page event listener to edit form
-        newForm.addEventListener('change', () => {updatePage(pageNumber)});
+        newForm.addEventListener('change', () => {updatePage(pageNumber)})
 
         // Attach delete page function to remove button.
-        const deleteBtn = newPage.querySelector('.delete-page-button');
+        const deleteBtn = newPage.querySelector('.delete-page-button')
         deleteBtn.onclick = () => {
-            newForm.remove();
-            newPage.remove();
-            reorderPages();
-        };
+            newForm.remove()
+            newPage.remove()
+            reorderPages()
+        }
 
         // Attach move page up function
-        const upBtn = newPage.querySelector('.move-up');
+        const upBtn = newPage.querySelector('.move-up')
         upBtn.onclick = () => {
-            const prevPage = newPage.previousElementSibling;
-            const prevForm = newForm.previousElementSibling;
+            const prevPage = newPage.previousElementSibling
+            const prevForm = newForm.previousElementSibling
             if (prevPage && prevForm) {
-                newPage.parentElement.insertBefore(newPage, prevPage);
-                newForm.parentElement.insertBefore(newForm, prevForm);
-                reorderPages();
+                newPage.parentElement.insertBefore(newPage, prevPage)
+                newForm.parentElement.insertBefore(newForm, prevForm)
+                reorderPages()
             }
-        };
+        }
 
         // Attach move page down function
-        const downBtn = newPage.querySelector('.move-down');
+        const downBtn = newPage.querySelector('.move-down')
         downBtn.onclick = () => {
-            const nextPage = newPage.nextElementSibling;
-            const nextForm = newForm.nextElementSibling;
+            const nextPage = newPage.nextElementSibling
+            const nextForm = newForm.nextElementSibling
             if (nextPage && nextForm) {
-                newPage.parentElement.insertBefore(nextPage, newPage);
-                newForm.parentElement.insertBefore(nextForm, newForm);
-                reorderPages();
+                newPage.parentElement.insertBefore(nextPage, newPage)
+                newForm.parentElement.insertBefore(nextForm, newForm)
+                reorderPages()
             }
-        };
+        }
 
         // Attach image dropzone listener to page
-        setupDropzone(newPage.querySelector('.dropzone'));
+        setupDropzone(newPage.querySelector('.dropzone'))
 
 
-        updatePage(pageNumber); // initialize lines
+        updatePage(pageNumber) // initialize lines
     }
 
     function reorderPages() {
-        const pageNodes = document.querySelectorAll('#pages-section > .print-page');
-        const formNodes = document.querySelectorAll('#edit-section > .edit-panel');
+        const pageNodes = document.querySelectorAll('#pages-section > .print-page')
+        const formNodes = document.querySelectorAll('#edit-section > .edit-panel')
 
         pageNodes.forEach((page, i) => {
-            page.id = `page-${i + 1}`;
-        });
+            page.id = `page-${i + 1}`
+        })
 
         formNodes.forEach((form, i) => {
-            form.id = `edit-form-page-${i + 1}`;
+            form.id = `edit-form-page-${i + 1}`
 
             // Make sure change listener is refreshed with correct index
-            form.onchange = () => updatePage(i + 1);
-        });
+            form.onchange = () => updatePage(i + 1)
+        })
+        updateAllPages()
+        saveToLocalStorage()
     }
+   
     function getPageCount() {
-        const pages = document.querySelectorAll('#pages-section > [id^="page-"]');
-        return pages.length;
+        const pages = document.querySelectorAll('#pages-section > [id^="page-"]')
+        return pages.length
     }
 
 
@@ -508,85 +605,118 @@
     function updatePage(page_number){
 
         const page = document.getElementById(`page-${page_number}`)
-        const form = document.querySelector(`#edit-form-page-${page_number}`);
-        const data = new FormData(form);
+        const form = document.querySelector(`#edit-form-page-${page_number}`)
+        const data = new FormData(form)
 
-        const type = data.get('type') || "";
-        const location = data.get('location') || "";
-        const cclt = data.get('cclt') || "";
-        const release = data.get('release') || "";
-        const initial = data.get('initial') || "";
-        const final = data.get('final') || "";
-        const poi = data.get('poi') || "";
+        const type = data.get('type') || ""
+        const location = data.get('location') || ""
+        const cclt = data.get('cclt') || ""
+        const release = data.get('release') || ""
+        const initial = data.get('initial') || ""
+        const final = data.get('final') || ""
+        const poi = data.get('poi') || ""
 
+        const global_settings_element = document.querySelector(`#global-settings`)
+        const global_settings = new FormData(global_settings_element)
+        const active_site = global_settings.get('active_site')
+        const current_date = global_settings.get('current_date')
+
+        // Generate date or page number
+        const header_page_number = page.querySelector(`.page-number`)
+        if (page_number == 1){
+            header_page_number.innerHTML = current_date
+        }
+        else{
+            header_page_number.innerHTML = page_number
+        }
+
+        // Generate header if first page
+        if (page_number === 1){
+            const header_1 = page.querySelector('.first-page-header-1')
+            header_1.innerHTML = line_templates["first-page-header-1"]
+
+            const header_2 = page.querySelector('.first-page-header-2')
+            header_2.innerHTML = line_templates["first-page-header-2"].replace('%s', active_site)
+        }
+
+        // Generate Subject line
+        const subject = page.querySelector('.subject')
+
+        const location_valid = location !== ""
+        const location_checked = location_valid ? wrapInput(location) : wrapError("[NO LOCATION]")
+        form.querySelector('[name="location"]').classList.toggle('error-border', !location_valid)
+
+
+        const subject_text = line_templates["subject"].replace('%s', location_checked)
+        subject.innerHTML = subject_text
 
         // Generate Line 1
         const line_1 = page.querySelector('.line-1')
 
-        const location_valid = location !== "";
-        const location_checked = location_valid ? wrapInput(location) : wrapError("[NO LOCATION]");
-        form.querySelector('[name="location"]').classList.toggle('error-border', !location_valid);
+        const type_valid = type !== ""
+        const type_checked = type_valid ? wrapInput(type) : wrapError("[NO TYPE]")
+        form.querySelector('[name="type"]').classList.toggle('error-border', !type_valid)
 
-
-        const line_1_text = line_templates["line-1"].replace('%s', location_checked);
+        const line_1_text = line_templates["line-1"].replace('%s', type_checked)
         line_1.innerHTML = line_1_text
 
         // Generate Line 2
         const line_2 = page.querySelector('.line-2')
 
-        const type_valid = type !== "";
-        const type_checked = type_valid ? wrapInput(type) : wrapError("[NO TYPE]");
-        form.querySelector('[name="type"]').classList.toggle('error-border', !type_valid);
+        let line_2_text
 
-        const line_2_text = line_templates["line-2"].replace('%s', type_checked)
+        const cclt_valid = /^\d{6}$/.test(cclt)
+        form.querySelector('[name="cclt"]').classList.toggle('error-border', !cclt_valid)
+
+        const release_valid = /^\d{6}$/.test(release)
+        form.querySelector('[name="release"]').classList.toggle('error-border', !release_valid)
+
+        if (cclt_valid && release_valid) {
+            const formatted_release = formatZuluDelta(cclt, release)
+            line_2_text = line_templates["line-2"].replace('%s', wrapInput(formatted_release))
+        } 
+        else {
+            let warning
+            if (!cclt_valid && !release_valid) {
+                warning = "[CCLT & RELEASE INVALID]"
+            } 
+            else if (!cclt_valid) {
+                warning = "[CCLT INVALID]"
+            } 
+            else {
+                warning = "[RELEASE INVALID]"
+            }
+            line_2_text = line_templates["line-2"].replace('%s', wrapError(warning))
+        }
+
         line_2.innerHTML = line_2_text
 
         // Generate Line 3
-        const line_3 = page.querySelector('.line-3');
+        const line_3 = page.querySelector('.line-3')
 
-        let line_3_text;
-
-        const cclt_valid = /^\d{6}$/.test(cclt);
-        form.querySelector('[name="cclt"]').classList.toggle('error-border', !cclt_valid);
-
-        const release_valid = /^\d{6}$/.test(release);
-        form.querySelector('[name="release"]').classList.toggle('error-border', !release_valid);
-
-        if (cclt_valid && release_valid) {
-            const formatted_release = formatZuluDelta(cclt, release);
-            line_3_text = line_templates["line-3"].replace('%s', formatted_release);
-        } 
-        else {
-            let warning;
-            if (!cclt_valid && !release_valid) {
-                warning = "[CCLT & RELEASE INVALID]";
-            } 
-            else if (!cclt_valid) {
-                warning = "[CCLT INVALID]";
-            } 
-            else {
-                warning = "[RELEASE INVALID]";
-            }
-            line_3_text = line_templates["line-3"].replace('%s', wrapError(warning));
-        }
-
-        line_3.innerHTML = line_3_text;
+        const line_3_text = line_templates["line-3"].replace('%s', wrapInput(initial + " / " + final))
+        line_3.innerHTML = line_3_text
 
         // Generate Line 4
         const line_4 = page.querySelector('.line-4')
 
-        const line_4_text = line_templates["line-4"].replace('%s', wrapInput(initial + "/" + final))
+        const poi_valid = poi !== ""
+        const poi_checked = poi_valid ? wrapInput(poi) : wrapError("[NO POI]")
+        form.querySelector('[name="poi"]').classList.toggle('error-border', !poi_valid)
+        
+        let line_4_text = line_templates["line-4"].replace('%s', poi_checked)
         line_4.innerHTML = line_4_text
 
         // Generate Line 5
         const line_5 = page.querySelector('.line-5')
-
-        const poi_valid = poi !== "";
-        const poi_checked = poi_valid ? wrapInput(poi) : wrapError("[NO POI]");
-        form.querySelector('[name="poi"]').classList.toggle('error-border', !poi_valid);
-        
-        let line_5_text = line_templates["line-5"].replace('%s', poi_checked)
-        line_5.innerHTML = line_5_text
+        line_5.innerHTML = line_templates["line-5"]
+    }
+    
+    function updateAllPages() {
+        const pageCount = getPageCount()
+        for (let i = 1; i <= pageCount; i++) {
+            updatePage(i)
+        }
     }
 
     function wrapInput(text){
@@ -594,37 +724,168 @@
     }
 
     function wrapError(text) {
-        return `<span class='error'>${text}</span>`;
+        return `<span class='error'>${text}</span>`
     }
 
     function parseZuluTime(hhmmss, dayOffset = 0) {
-        const h = parseInt(hhmmss.slice(0, 2), 10);
-        const m = parseInt(hhmmss.slice(2, 4), 10);
-        const s = parseInt(hhmmss.slice(4, 6), 10);
-        return new Date(Date.UTC(1970, 0, 1 + dayOffset, h, m, s));
+        const h = parseInt(hhmmss.slice(0, 2), 10)
+        const m = parseInt(hhmmss.slice(2, 4), 10)
+        const s = parseInt(hhmmss.slice(4, 6), 10)
+        return new Date(Date.UTC(1970, 0, 1 + dayOffset, h, m, s))
     }
 
     function formatZuluDelta(ccltStr, releaseStr) {
-        const cclt = parseZuluTime(ccltStr);
-        let release = parseZuluTime(releaseStr);
+        const cclt = parseZuluTime(ccltStr)
+        let release = parseZuluTime(releaseStr)
 
         if (release < cclt) {
             // assume release is on the next day
-            release = parseZuluTime(releaseStr, 1);
+            release = parseZuluTime(releaseStr, 1)
         }
 
-        const deltaSec = Math.round((release - cclt) / 1000);
-        const sign = deltaSec >= 0 ? '+' : '-';
-        const absSec = Math.abs(deltaSec);
-        const mm = Math.floor(absSec / 60);
-        const ss = absSec % 60;
+        const deltaSec = Math.round((release - cclt) / 1000)
+        const sign = deltaSec >= 0 ? '+' : '-'
+        const absSec = Math.abs(deltaSec)
+        const mm = Math.floor(absSec / 60)
+        const ss = absSec % 60
 
-        const pad = (n) => n.toString().padStart(2, '0');
-        const releaseFormatted = `${pad(release.getUTCHours())}:${pad(release.getUTCMinutes())}:${pad(release.getUTCSeconds())}Z`;
-        const deltaFormatted = `(${sign}${pad(mm)}:${pad(ss)})`;
+        const pad = (n) => n.toString().padStart(2, '0')
+        const releaseFormatted = `${pad(release.getUTCHours())}:${pad(release.getUTCMinutes())}:${pad(release.getUTCSeconds())}Z`
+        const deltaFormatted = `(${sign}${pad(mm)}:${pad(ss)})`
 
-        return `${releaseFormatted} ${deltaFormatted}`;
+        return `${releaseFormatted} ${deltaFormatted}`
     }
+
+    // ##### Local Storage (persist through refresh) ##### //
+
+    function serializeScreenshot(imgElement) {
+        const canvas = document.createElement('canvas');
+        canvas.width = imgElement.naturalWidth;
+        canvas.height = imgElement.naturalHeight;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgElement, 0, 0);
+
+        return canvas.toDataURL('image/jpeg', 0.8); // Use jpeg for smaller size
+    }
+
+    function estimateSizeInBytes(obj) {
+        return new TextEncoder().encode(JSON.stringify(obj)).length;
+    }
+    
+    function saveToLocalStorage() {
+        console.log(`Saving ${getPageCount()} pages to local storage.`)
+        const screenshotsEnabled = true;
+        const data = {
+            global: {
+                active_site: document.querySelector('input[name="active_site"]:checked')?.value || 'A',
+                current_date: document.getElementById('custom-date')?.value || ''
+            },
+            pages: []
+        };
+
+        const pageForms = document.querySelectorAll('[id^="edit-form-page-"]');
+
+        pageForms.forEach((form, i) => {
+            const pageId = form.id.replace('edit-form-', '');
+            const pageElement = document.getElementById(pageId);
+            const img = pageElement?.querySelector('.screenshot');
+
+            const formData = new FormData(form);
+
+            const pageData = {
+                location: formData.get('location') || '',
+                type: formData.get('type') || '',
+                cclt: formData.get('cclt') || '',
+                release: formData.get('release') || '',
+                initial: formData.get('initial') || '',
+                final: formData.get('final') || '',
+                poi: formData.get('poi') || ''
+            };
+
+            // Try to serialize screenshot (if visible)
+            if (screenshotsEnabled) {
+                if (img && img.src && img.src.startsWith('data:image')) {
+                    pageData.screenshot = img.src; // already base64
+                }
+            }
+
+            data.pages.push(pageData);
+        });
+
+        // Estimate data size
+        const estimatedSize = estimateSizeInBytes(data);
+
+        try {
+            if (estimatedSize > 4_500_000) { // ~4.5MB safety margin
+                // Retry without screenshots
+                data.pages.forEach(p => delete p.screenshot);
+                localStorage.setItem('savedBuilderData', JSON.stringify(data));
+                alert("⚠️ Screenshots were too large to save. Form data was saved without images.");
+            } else {
+                localStorage.setItem('savedBuilderData', JSON.stringify(data));
+            }
+        } catch (e) {
+            console.warn("Saving failed:", e);
+            alert("❌ Error saving data. Storage limit likely exceeded.");
+        }
+    }
+
+
+    function restoreFromLocalStorage() {
+        const raw = localStorage.getItem('savedBuilderData')
+        if (!raw) return
+
+        const data = JSON.parse(raw)
+
+        // Restore global settings
+        if (data.global) {
+            document.getElementById('custom-date').value = data.global.current_date || ''
+            const siteRadio = document.querySelector(`input[name="active_site"][value="${data.global.active_site}"]`)
+            if (siteRadio) siteRadio.checked = true
+        }
+
+        // Remove any existing pages
+        document.getElementById('edit-section').innerHTML = ''
+        document.getElementById('pages-section').innerHTML = ''
+
+        // Rebuild pages
+       data.pages.forEach((pageData, i) => {
+            addNewPage();
+            const form = document.querySelector(`#edit-form-page-${i + 1}`);
+            if (!form) return;
+
+            form.querySelector('[name="location"]').value = pageData.location;
+            form.querySelector('[name="type"]').value = pageData.type;
+            form.querySelector('[name="cclt"]').value = pageData.cclt;
+            form.querySelector('[name="release"]').value = pageData.release;
+            form.querySelector(`[name="initial"][value="${pageData.initial}"]`).checked = true;
+            form.querySelector(`[name="final"][value="${pageData.final}"]`).checked = true;
+            form.querySelector('[name="poi"]').value = pageData.poi;
+
+            // ✅ Restore screenshot if present
+            if (pageData.screenshot) {
+                const pageElement = document.querySelector(`#page-${i + 1}`);
+                const dropzone = pageElement.querySelector('.dropzone');
+                const container = pageElement.querySelector('.screenshot-container');
+                const img = container.querySelector('.screenshot');
+
+                img.src = pageData.screenshot;
+                container.style.display = 'block';
+                dropzone.style.display = 'none';
+
+                const removeBtn = container.querySelector('.remove-screenshot');
+                removeBtn.onclick = () => {
+                    img.src = '';
+                    container.style.display = 'none';
+                    dropzone.style.display = 'flex';
+                    saveToLocalStorage();
+                };
+            }
+            updatePage(i + 1) // Trigger rendering
+        })
+    }
+
 
   </script>
 
