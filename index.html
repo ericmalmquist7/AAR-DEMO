@@ -47,6 +47,10 @@
         
     }
 
+    body{
+        margin: 0;
+    }
+
     /* Top level container that holds all edit and page containers */
     #edit-preview-container{
         display: flex;
@@ -71,6 +75,7 @@
 
     /* Container for each page */
     .print-page {
+        position: relative;
         width: 210mm;   /* A4 width */
         height: 297mm;  /* A4 height */
         padding: 40mm;
@@ -189,6 +194,66 @@
         transform: scale(0.85);
     }
 
+    .page-controls {
+        position: absolute;
+        top: 4mm;
+        right: 4mm;
+        display: flex;
+        flex-direction: column;
+        gap: 2mm;
+        z-index: 10;
+    }
+
+    .reorder-page-button,
+    .delete-page-button {
+        width: 24px;
+        height: 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .reorder-page-button {
+        background-color: #007bff;
+    }
+
+    .reorder-page-button:hover {
+        background-color: #0056b3;
+    }
+
+    .delete-page-button {
+        background-color: red;
+        border-radius: 50%;
+    }
+
+    .delete-page-button:hover {
+        background-color: darkred;
+    }
+
+    #title{
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .title{
+        margin: 0 0 10px 0;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background-color: #0056b3;
+        text-align: center;
+    }
+
+
+
   </style>
 </head>
 <body>
@@ -231,6 +296,11 @@
             <input name="poi" value="N/A">
         </form>
         <div id="page-template" class="print-page template">
+            <div class="page-controls no-print">
+                <button class="reorder-page-button move-up" title="Move page up">↑</button>
+                <button class="reorder-page-button move-down" title="Move page down">↓</button>
+                <button class="delete-page-button" title="Delete this page">−</button>
+            </div>
             <p class="line-1"></p>
             <p class="line-2"></p>
             <p class="line-3"></p>
@@ -245,6 +315,7 @@
             </div>
         </div>
     </div>
+    <h1 class="title">Builder</h1>
 
     <div id="edit-preview-container"> 
         <div id="edit-section">
@@ -372,12 +443,60 @@
         // Attach page event listener to edit form
         newForm.addEventListener('change', () => {updatePage(pageNumber)});
 
+        // Attach delete page function to remove button.
+        const deleteBtn = newPage.querySelector('.delete-page-button');
+        deleteBtn.onclick = () => {
+            newForm.remove();
+            newPage.remove();
+            reorderPages();
+        };
+
+        // Attach move page up function
+        const upBtn = newPage.querySelector('.move-up');
+        upBtn.onclick = () => {
+            const prevPage = newPage.previousElementSibling;
+            const prevForm = newForm.previousElementSibling;
+            if (prevPage && prevForm) {
+                newPage.parentElement.insertBefore(newPage, prevPage);
+                newForm.parentElement.insertBefore(newForm, prevForm);
+                reorderPages();
+            }
+        };
+
+        // Attach move page down function
+        const downBtn = newPage.querySelector('.move-down');
+        downBtn.onclick = () => {
+            const nextPage = newPage.nextElementSibling;
+            const nextForm = newForm.nextElementSibling;
+            if (nextPage && nextForm) {
+                newPage.parentElement.insertBefore(nextPage, newPage);
+                newForm.parentElement.insertBefore(nextForm, newForm);
+                reorderPages();
+            }
+        };
+
         // Attach image dropzone listener to page
         setupDropzone(newPage.querySelector('.dropzone'));
+
 
         updatePage(pageNumber); // initialize lines
     }
 
+    function reorderPages() {
+        const pageNodes = document.querySelectorAll('#pages-section > .print-page');
+        const formNodes = document.querySelectorAll('#edit-section > .edit-panel');
+
+        pageNodes.forEach((page, i) => {
+            page.id = `page-${i + 1}`;
+        });
+
+        formNodes.forEach((form, i) => {
+            form.id = `edit-form-page-${i + 1}`;
+
+            // Make sure change listener is refreshed with correct index
+            form.onchange = () => updatePage(i + 1);
+        });
+    }
     function getPageCount() {
         const pages = document.querySelectorAll('#pages-section > [id^="page-"]');
         return pages.length;
