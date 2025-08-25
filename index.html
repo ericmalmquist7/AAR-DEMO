@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>One Page Print</title>
+  <title>[replace] Builder</title>
   <style>
     @media print {
         @page {
@@ -200,7 +200,7 @@
     }
 
     /* Style for page creation button */
-    .new-page-button {
+    #new-page-button {
         display: block;
         margin: 40px auto;             /* Center horizontally + spacing */
         padding: 16px 32px;
@@ -214,11 +214,11 @@
         transition: background-color 0.2s ease, transform 0.1s ease;
     }
 
-    .new-page-button:hover {
+    #new-page-button:hover {
         background-color: #218838;     /* Slightly darker green */
     }
 
-    .new-page-button:active {
+    #new-page-button:active {
         transform: scale(0.85);
     }
 
@@ -264,10 +264,19 @@
         background-color: darkred;
     }
 
-    #title{
+    #global-settings{
         display: flex;
-        flex-flow: column;
+        flex-flow: row;
         align-items: center;
+        justify-content: center;
+    }
+
+    #global-settings > fieldset{
+        height: 40px;
+        align-content: center;
+        display: flex;
+        flex-flow: row;
+        gap: 10px;
         justify-content: center;
     }
 
@@ -288,6 +297,26 @@
         width: 100px;
     }
 
+    .icon{
+        font-size: 30px;
+    }
+
+    .warning-storage{
+        position: fixed;
+        z-index: 10;
+        width: 200px;
+        height: 60px;
+        right: 10px;
+        bottom: 10px;
+        display: none; /* set to display: flex to unhide.*/
+        flex-flow: row;
+        align-items: center;
+        border: solid black 1px;
+        font-size: 16px;
+        text-align: center;
+        background-color: rgb(177, 177, 177);
+    }
+
   </style>
 </head>
 <body>
@@ -296,11 +325,11 @@
             <br>
             <p class="edit-label">LOCATION</p> 
             <input name="location" type="text" placeholder="Generic Place">
-            <p class="edit-label">TYPE</p> 
+            <p class="edit-label">FINAL PROFILE</p> 
             <input name="type" type="text" placeholder="Generic Thingy">
-            <p class="edit-label">CCLT</p> 
+            <p class="edit-label">CCLT (HHMMSS)</p> 
             <input name="cclt" type="text" placeholder="123045">
-            <p class="edit-label">RELEASE</p> 
+            <p class="edit-label">RELEASE (HHMMSS)</p> 
             <input name="release" type="text" placeholder="123150">
             <fieldset>
                 <legend>Initial:</legend>
@@ -357,7 +386,7 @@
 
     <form id="global-settings">
         <fieldset>
-            <legend>Active Site:</legend>
+            <legend>Active Site</legend>
             <label>
                 <input type="radio" name="active_site" value="A" checked>
                 A
@@ -368,8 +397,19 @@
                 B
             </label>
         </fieldset>
-        <input id="custom-date" name="current_date" class="styled-date" type="text">
-
+        <fieldset>
+            <legend>Current Date</legend>
+            <button id="set-today-date" type="button">Today</button>
+            <input id="custom-date" name="current_date" class="styled-date" type="text">
+        </fieldset>
+        <fieldset>
+            <legend>Delete all pages</legend>
+            <button id="delete-all-pages" type="button">Delete</button>
+        </fieldset>
+        <fieldset>
+            <legend>Print Report (CTRL-P)</legend>
+            <button id="print-page" type="button">Print</button>
+        </fieldset>
     </form>
 
     <div id="edit-preview-container"> 
@@ -382,10 +422,17 @@
     </div>
     
     <div>
-        <button class="new-page-button">
+        <button id="new-page-button">
             ➕ New Page
         </button>
     </div>
+    <div class="warning-storage">
+        <p class="icon">⚠️</p>
+        <p>
+             Local storage exceeded. Screenshots will not be saved on refresh.
+        </p>
+    </div>
+
   <script>
     // ###### Constant Global Variables ###### //
 
@@ -401,24 +448,15 @@
     }
 
 
-    // ###### Initial event handlers ###### //
-
-    // Load today's date:
-    const dateInput = document.getElementById('custom-date')
-
-    const now = new Date()
-    const day = String(now.getDate()).padStart(2, '0')
-    const month = now.toLocaleString('en-US', { month: 'short' }) // e.g., "Aug"
-    const year = String(now.getFullYear()).slice(-2)              // e.g., "25"
-
-    dateInput.value = `${day} ${month} ${year}`
 
     // Load any saved changes
     restoreFromLocalStorage()
+    setTodayDate() // Calling this after restoreFromLocalStorage will overwrite today's date to whatever was saved.
 
+
+    // ###### Initialize event handlers ###### //
     // Set autosave event handlers
     document.body.addEventListener('change', () => saveToLocalStorage())
-
 
     // Attach input validation to all current and future inputs of name 'cclt' and 'release'
     document.body.addEventListener('input', (e) => {
@@ -431,6 +469,20 @@
         }
     })
 
+    // Attach global settings form to apply updates to all pages
+    document.querySelector('#global-settings').addEventListener('change', () => {
+        updateAllPages()
+    })
+
+    // Attach Today date button:
+    document.querySelector('#set-today-date').addEventListener('click', () => setTodayDate())
+
+    // Attach Delete all pages button:
+    document.querySelector('#delete-all-pages').addEventListener('click', () => deleteAllPages())
+    
+    // Attach Print Report button
+    document.querySelector('#print-page').addEventListener('click', () => window.print());
+
     // Attach input validation to current date
     document.querySelector('#custom-date').addEventListener('input', () => {
         const input = document.getElementById('custom-date')
@@ -442,12 +494,7 @@
     })
 
     // Attach new page function to the new page button
-    document.querySelector('.new-page-button').addEventListener('click', () => { addNewPage() })
-
-    // Attach global settings form to apply updates to all pages
-    document.querySelector('#global-settings').addEventListener('change', () => {
-        updateAllPages()
-    })
+    document.querySelector('#new-page-button').addEventListener('click', () => { addNewPage() })
 
     // Load new page if none are present
     if (getPageCount() === 0){ 
@@ -599,6 +646,19 @@
         return pages.length
     }
 
+    function deleteAllPages() {
+        if (!confirm("Are you sure you want to delete all pages?")) return;
+
+        // Clear all page elements
+        document.getElementById('edit-section').innerHTML = '';
+        document.getElementById('pages-section').innerHTML = '';
+
+        // Persist empty state
+        saveToLocalStorage();
+
+        // (Optional) Add back a blank page so the user isn't stuck with nothing
+        addNewPage();
+    }
 
     // ###### Input Parsing and Page Update Functions ###### //
 
@@ -756,6 +816,19 @@
         return `${releaseFormatted} ${deltaFormatted}`
     }
 
+    function setTodayDate(){
+        const dateInput = document.getElementById('custom-date')
+
+        const now = new Date()
+        const day = String(now.getDate()).padStart(2, '0')
+        const month = now.toLocaleString('en-US', { month: 'short' }) // e.g., "Aug"
+        const year = String(now.getFullYear()).slice(-2)              // e.g., "25"
+
+        dateInput.value = `${day} ${month} ${year}`
+        document.body.dispatchEvent(new Event('change', { bubbles: true }));
+        updateAllPages()
+    }
+
     // ##### Local Storage (persist through refresh) ##### //
 
     function serializeScreenshot(imgElement) {
@@ -821,16 +894,21 @@
                 // Retry without screenshots
                 data.pages.forEach(p => delete p.screenshot);
                 localStorage.setItem('savedBuilderData', JSON.stringify(data));
-                alert("⚠️ Screenshots were too large to save. Form data was saved without images.");
+                setWarningVisibility(true)
+                console.warn("⚠️ Screenshots were too large to save. Form data was saved without images.");
             } else {
                 localStorage.setItem('savedBuilderData', JSON.stringify(data));
             }
         } catch (e) {
             console.warn("Saving failed:", e);
-            alert("❌ Error saving data. Storage limit likely exceeded.");
+            setWarningVisibility(true)
+            console.warn("❌ Error saving data. Storage limit likely exceeded.");
         }
     }
 
+    function setWarningVisibility(is_visible){
+        document.querySelector(".warning-storage").style.display = is_visible ? "flex" : "none"
+    }
 
     function restoreFromLocalStorage() {
         const raw = localStorage.getItem('savedBuilderData')
