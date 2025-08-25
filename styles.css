@@ -1,0 +1,376 @@
+:root {
+--gray-darkest: rgb(34, 34, 34);
+--gray-darker: rgb(70, 70, 70);
+--gray-dark: rgb(105, 105, 105);
+--gray: rgb(143, 143, 143);
+--gray-light: rgb(182, 182, 182);
+--gray-lightest: rgb(216, 216, 216);
+--red: rgb(163, 0, 0);
+--green: rgb(0, 128, 0);
+--red-dark: rgb(116, 0, 0);
+}
+
+@media print {
+    @page {
+        size: A4;       /* Force A4 page size */
+        margin: 0;      /* No default margins */
+    }
+
+    body {
+        margin: 0;      /* Remove body margins */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body * {
+        display: none !important;
+    }
+
+    #edit-preview-container,
+    #pages-section,
+    #pages-section * {
+        display: block !important;
+    }
+
+    #pages-section .no-print{
+        display: none !important;
+    }
+
+    .print-page {
+        border: none !important;
+    }
+
+    .error {
+        color:black
+    }
+    
+    #pages-section .user-input,
+    #pages-section .error {
+        color: black !important;
+        display: inline !important;
+    }
+    
+}
+
+body{
+    margin: 0;
+}
+
+/* Top level container that holds all edit and page containers */
+#edit-preview-container{
+    display: flex;
+    flex-flow:row;
+    align-items: top;
+    margin: 130px auto;             /* Center horizontally */
+    width: fit-content;         /* Shrink to fit internal content */
+    max-width: 100%;            /* Prevent overflow */
+}
+
+#edit-section{
+    display: flex;
+    flex-flow: column;
+    gap:10px;
+}
+
+#pages-section{
+    display: flex;
+    flex-flow: column;
+    gap:10px;
+}
+
+/* Container for each page */
+.print-page {
+    position: relative;
+    width: 210mm;   /* A4 width */
+    height: 297mm;  /* A4 height */
+    padding: 1.85in 1in 1in 1in;
+    box-sizing: border-box;
+    page-break-after: always; /* Ensure next content goes to new page */
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    border: solid 1mm black;
+}
+
+.print-page *{
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+}
+
+.page-number{
+    position: absolute;
+    top: 1.65in;
+    right: 1in;
+}
+
+/* Container for each edit panel */
+.edit-panel{
+    display: flex;
+    flex-flow: column;
+    height: 297mm;
+    gap:10px;
+    padding: 20px;
+    box-sizing: border-box;
+    align-items: flex-start;
+    justify-content: flex-start;
+    background-color: var(--gray-lightest);
+    border-top: 1mm solid black;
+    border-left: 1mm solid black;
+    border-bottom: 1mm solid black;
+    border-right: none;
+}
+
+/* Page styling - background of each page */
+.template{
+    background-image: url("template.jpg");
+}
+
+/* Page styling - screenshot container in each page */
+.screenshot-container{
+    max-width: 100%;
+}
+
+/* Page styling - screenshot in each page */
+.screenshot {
+    max-width: 100%;
+    display: block;
+}
+
+/* Page styling - image dropzone */
+.dropzone {
+    width: 100%;
+    height: 150px;
+    border: 2px dashed var(--gray-dark);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--gray-dark);
+    font-size: 14px;
+    cursor: pointer;
+    background-color: white;
+    transition: background-color 0.3s;
+    margin-top: 10px;
+}
+
+/* Page styling - image dropzone dragover event */
+.dropzone.dragover {
+    background-color: var(--gray-lightest);
+    border-color: var(--gray-darker);
+    color: var(--gray-darker);
+}
+
+.remove-screenshot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 24px;
+    text-align: center;
+    padding: 0;
+}
+
+/* Magnifier styles */
+.magnifier-glass {
+    position: absolute;
+    border: 3px solid black;
+    width: 300px;
+    height: 300px;
+    overflow: hidden;
+    display: none;
+    z-index: 20;
+    pointer-events: none; /* avoids blocking the mouse */
+}
+
+.magnifier-glass img {
+    position: absolute;
+    transform: scale(2); /* zoom factor */
+    transform-origin: top left;
+}
+
+/* Page styling - Dynamic user input style */
+.user-input{
+    color: var(--green);
+}
+
+/* Page styling - Dynamic error style */
+.error{
+    color: var(--red);
+}
+
+/* Edit styling - Input labels */
+.edit-label {
+    width: 100%;
+    text-align: center;
+    height: 20px;
+    margin: 4px;
+}
+
+/* Edit styling - Input fields */
+.edit-panel input {
+    height: 20px;
+}
+
+/* Edit styling - Dynamic error style */
+.error-border {
+    border: 2px solid var(--red);
+}
+
+/* Style for page creation button */
+#new-page-button {
+    display: block;
+    margin: 40px auto;             /* Center horizontally + spacing */
+    padding: 16px 32px;
+    font-size: 1.5rem;
+    background-color: var(--gray-dark); 
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+#new-page-button:hover {
+    background-color: var(--gray-darker);     /* Slightly darker green */
+}
+
+#new-page-button:active {
+    transform: scale(0.85);
+}
+
+.page-controls {
+    position: absolute;
+    top: 4mm;
+    right: 4mm;
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+    z-index: 8;
+}
+
+.reorder-page-button,
+.delete-page-button {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.reorder-page-button {
+    background-color: var(--gray-dark);
+}
+
+.reorder-page-button:hover {
+    background-color: var(--gray-darker);
+}
+
+.delete-page-button {
+    background-color: var(--red);
+    border-radius: 50%;
+}
+
+.delete-page-button:hover {
+    background-color: var(--red-dark);
+}
+
+#header{
+    position: fixed;
+    padding-top:5px;
+    top:0;
+    left:0;
+    width: 100%;
+    height: 115px;
+    z-index: 9;
+    background-color: var(--gray-darkest);
+    color:white;
+}
+
+#global-settings{
+    display: flex;
+    flex-flow: row;
+    align-items: center;
+    justify-content: center;
+    gap:10px;
+}
+
+#global-settings button{
+    width: 100%;
+}
+
+#global-settings > fieldset{
+    height: 40px;
+    align-content: center;
+    display: flex;
+    flex-flow: row;
+    gap: 10px;
+    justify-content: center;
+    text-align: center;
+}
+
+.title{
+    margin: 0 0 10px 0;
+    left: 0;
+    top: 0;
+    width: 100%;
+    text-align: center;
+}
+
+.styled-date {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    border: 1px solid black;
+    padding: 4px;
+    width: 100px;
+}
+
+.icon{
+    font-size: 30px;
+}
+
+.warning-storage{
+    position: fixed;
+    z-index: 10;
+    width: 200px;
+    height: 60px;
+    right: 10px;
+    bottom: 10px;
+    display: none; /* set to display: flex to unhide.*/
+    flex-flow: row;
+    align-items: center;
+    border: solid black 1px;
+    font-size: 16px;
+    text-align: center;
+    background-color: var(--gray-light)
+}
+
+#useful-links{
+    position: fixed;
+    display: flex;
+    flex-flow: column;
+    padding: 10px;
+    z-index: 10;
+    height: calc(100% - 120px);
+    background-color: var(--gray-light);
+    left: 0;
+    top: 120px;
+    border-right: 4px solid var(--gray-darker);
+    text-align: center;
+}
+
+#useful-links a{
+    font-size: 20px;
+}
